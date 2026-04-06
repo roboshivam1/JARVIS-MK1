@@ -1,6 +1,7 @@
 from typing import List, Dict
 
-class conversationMemory:
+class ConversationMemory:
+    
     def __init__(self, system_prompt: str, max_turns: int = 8):
         "Initialises the memory buffer"
         self.system_message = {"role": "system", "content": system_prompt}
