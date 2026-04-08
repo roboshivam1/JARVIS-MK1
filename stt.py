@@ -4,17 +4,25 @@ import wave
 import time
 import os
 from pynput import keyboard
-from faster_whisper import WhisperModel
+from groq import Groq
+from dotenv import load_dotenv
 
 class JarvisEars:
-    def __init__(self, model_size: str = "medium"):
+    def __init__(self):
         """
-        Initializes the Push-to-Talk engine using faster_whisper.
+        Initializes the Push-to-Talk engine using the Groq Cloud API.
         """
-        print("[System] Waking up JARVIS's ears (Push-to-Talk enabled)...")
-        self.model = WhisperModel(model_size, device="auto", compute_type="int8")
+        print("[System] Waking up JARVIS's ears (Groq API Push-to-Talk enabled)...")
         
-        # Whisper requires audio to be recorded at exactly 16000 Hz
+        # Initialize Groq Client
+        try:
+            load_dotenv()
+            self.client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        except Exception as e:
+            print("Error: Could not find Groq API Key. Please run 'export GROQ_API_KEY=\"your-key\"'")
+            exit(1)
+            
+        # 16000 Hz is standard for Whisper models
         self.sample_rate = 16000 
         self.is_recording = False
         self.audio_data = []
@@ -22,7 +30,7 @@ class JarvisEars:
     def listen(self) -> str:
         """
         Waits for the Right Shift key to be held down, records audio, 
-        and transcribes it when the key is released.
+        and transcribes it via Groq when the key is released.
         """
         print("\n[System] Press and HOLD the 'Right Shift' key to speak...")
         self.is_recording = False
@@ -33,7 +41,7 @@ class JarvisEars:
             # When Right Shift is pressed down, start recording
             if key == keyboard.Key.shift_r and not self.is_recording:
                 self.is_recording = True
-                print("\r[JARVIS is recording... Release 'Right Shift' to stop]", end="")
+                print("\r[🎙️ JARVIS is recording... Release 'Right Shift' to stop]", end="")
 
         def on_release(key):
             # When Right Shift is let go, stop recording and kill the listener
@@ -42,12 +50,9 @@ class JarvisEars:
                 return False 
 
         # --- Audio Recording Logic ---
-        # We start the keyboard listener
         with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
-            # We open an audio stream
             stream = sd.InputStream(samplerate=self.sample_rate, channels=1, dtype='int16')
             with stream:
-                # Keep running as long as the listener hasn't been killed
                 while listener.running:
                     if self.is_recording:
                         # Grab 1024 frames of audio and add to our list
@@ -61,7 +66,7 @@ class JarvisEars:
         if not self.audio_data:
             return ""
 
-        print("\n[Transcribing...]")
+        print("\n[⚡ Sending to Groq for transcription...]")
         
         # Flatten the audio chunks into one continuous array
         audio_np = np.concatenate(self.audio_data, axis=0)
@@ -74,12 +79,24 @@ class JarvisEars:
             wf.setframerate(self.sample_rate)
             wf.writeframes(audio_np.tobytes())
 
-        # Transcribe using faster_whisper
-        segments, _ = self.model.transcribe(temp_file, beam_size=5)
-        transcription = "".join([segment.text for segment in segments])
+        # --- Groq Transcription Logic ---
+        try:
+            with open(temp_file, "rb") as audio_file:
+                transcription = self.client.audio.transcriptions.create(
+                    file=(temp_file, audio_file.read()),
+                    model="whisper-large-v3-turbo",
+                    language="en",
+                    response_format="text"
+                )
+            result = transcription.strip()
+            
+        except Exception as e:
+            print(f"Groq Transcription Error: {e}")
+            result = ""
+            
+        finally:
+            # Always clean up the temporary audio file
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
 
-        # Clean up the audio file
-        if os.path.exists(temp_file):
-            os.remove(temp_file)
-
-        return transcription.strip()
+        return result
