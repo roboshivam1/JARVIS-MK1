@@ -6,6 +6,7 @@ class ConversationMemory:
         self.history = [{"role": "system", "content": system_prompt}]
         self.max_turns = max_turns
         self.log_file = "full_history.txt"
+        self.pending_transcript_file = "pending_transcript.txt"
 
     def add_message(self, role: str, content: any):
         """
@@ -25,6 +26,12 @@ class ConversationMemory:
             else:
                 # This handles logging the JSON 'tool_calls' from the assistant
                 f.write(f"[{role.upper()} CALLED TOOLS]: {json.dumps(content, indent=2)}\n\n")
+
+        try:
+            with open(self.pending_transcript_file, "a") as f:
+                f.write(f"{role.upper()}: {content}\n")
+        except Exception as e:
+            print(f"[Memory Error] Could not write to transcript: {e}")
 
         # 3. Keep the "active" memory lean so Ollama doesn't get slow
         if len(self.history) > (self.max_turns * 2):

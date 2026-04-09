@@ -3,8 +3,9 @@ from memory import ConversationMemory
 from tools.system_tools import AVAILABLE_TOOLS as system_tools
 from tools.web_tools import WEB_TOOLS as web_tools
 from tools.vision_tools import VISION_TOOLS as vision_tools
+from tools.memory_tools import MEMORY_TOOLS_MAP as memory_tools
 
-MASTER_TOOLS = {**system_tools, **web_tools, **vision_tools}
+MASTER_TOOLS = {**system_tools, **web_tools, **vision_tools, **memory_tools}
 
 class JarvisBrain:
     def __init__(self, model_name: str = "llama3.2"):

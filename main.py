@@ -5,6 +5,7 @@ from brain import JarvisBrain
 from stt import JarvisEars
 from tts import JarvisMouth
 from datetime import date
+from memory_consolidator import consolidate_memory
 
 today_date = date.today()
 
@@ -27,6 +28,8 @@ def initialize_jarvis():
     print("[System] Booting up JARVIS protocols...")
 
     # 1. Initialize Memory with the core persona
+
+    consolidate_memory()
     memory = ConversationMemory(
         system_prompt=SYSTEM_PROMPT,
         max_turns=8
@@ -59,8 +62,8 @@ def print_banner():
     print("\033[96m" + banner + "\033[0m")
 
 def run_jarvis():
-    print_banner()
     memory, brain, ears, mouth = initialize_jarvis()
+    print_banner()
     
     mouth.speak("All systems online. Good to see you, sir.")
     mouth.wait_until_done() # Ensure the greeting finishes before opening ears
